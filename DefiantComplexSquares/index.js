@@ -8,36 +8,75 @@ const client = new Client({
 const OWNER_ID = process.env.OWNER_ID;
 const AUTO_REACT_IDS = (process.env.AUTO_REACT_IDS || '').split(',').filter(id => id);
 
-client.on('ready', () => {
-    console.log(`✅ Logged in as ${client.user.tag}`);
+let mentionReplyEnabled = true; // Toggle for auto-reply when mentioned
 
-    // Set initial status
-    try {
-        client.user.setActivity('by mamouni_1xp', { type: 'LISTENING' });
-        console.log('✅ Status set: by mamouni_1xp');
-    } catch (error) {
-        console.error('Error setting status:', error);
+
+// Define your statuses with a logo (emojis or image URLs)
+const statuses = [
+    {
+      name: 'by mamouni_1xp',
+      type: 'PLAYING',
+      logo: '🎮', // You can use an emoji or URL to a logo image
+      message: 'bymamouni_1xp'
+    },
+    {
+      name: 'Watching a movie',
+      type: 'WATCHING',
+      logo: '🎬',
+      message: 'bymamouni_1xp'
+    },
+    {
+      name: 'Listening to music',
+      type: 'LISTENING',
+      logo: '🎵',
+      message: 'bymamouni_1xp'
+    },
+    {
+      name: 'Streaming',
+      type: 'STREAMING',
+      logo: '📹',
+      message: 'bymamouni_1xp'
     }
-});
-
-// Update status when the owner joins a voice channel
-client.on('voiceStateUpdate', async (oldState, newState) => {
-    if (newState.member.id === OWNER_ID && newState.channelId) {
-        try {
-            await client.user.setActivity(`In ${newState.channel.name}`, { type: 'LISTENING' });
-            console.log(`✅ Joined ${newState.channel.name} with owner`);
-        } catch (error) {
-            console.error('Failed to update voice channel status:', error);
-        }
-    } else if (oldState.member.id === OWNER_ID && !newState.channelId) {
-        await client.user.setActivity('Listening to your commands!', { type: 'LISTENING' });
-        console.log('✅ Left voice channel and reset status');
+  ];
+  
+  // Default status
+  let currentStatus = statuses[0];
+  
+  // When the bot is ready
+  client.once('ready', () => {
+    console.log(`Logged in as ${client.user.tag}`);
+    
+    // Set the initial status with the logo
+    client.user.setActivity(currentStatus.logo + ' ' + currentStatus.name, { type: currentStatus.type, url: 'https://twitch.tv/yourstreamlink' });
+  });
+  
+  // Listen for status change and track it
+  client.on('message', async (message) => {
+    if (message.author.bot) return;
+  
+    // Command to get the current status
+    if (message.content === '!status') {
+      message.reply(`Current status: ${currentStatus.logo} ${currentStatus.name}`);
     }
-});
-
+  
+    // Command to change status
+    if (message.content.startsWith('!setstatus')) {
+      const args = message.content.split(' ').slice(1).join(' ');
+  
+      const newStatus = statuses.find(status => status.name.toLowerCase().includes(args.toLowerCase()));
+      
+      if (newStatus) {
+        currentStatus = newStatus;
+        client.user.setActivity(currentStatus.logo + ' ' + currentStatus.name, { type: currentStatus.type, url: 'https://twitch.tv/yourstreamlink' });
+        message.reply(`Status changed to: ${currentStatus.logo} ${currentStatus.name}`);
+      } else {
+        message.reply('Invalid status. Use one of the following: ' + statuses.map(status => status.name).join(', '));
+      }
+    }
+  });
 // List of automatic replies
 const autoReplies = {
-    "mamouni1xp": "ax baghi akhona",
+    "mamouni1xp": "chokran 3la lmov",
 };
 
 // Store user-emoji pairs
@@ -52,12 +91,7 @@ client.on('messageCreate', async (message) => {
         await message.react('🫦');
     }
 
-    // Auto-reply based on specific keywords
-    for (const [trigger, reply] of Object.entries(autoReplies)) {
-        if (message.content.toLowerCase().includes(trigger)) {
-            await message.reply(reply);
-        }
-    }
+
 
     // Auto-react to specific users
     if (userEmojis.has(message.author.id)) {
@@ -65,8 +99,8 @@ client.on('messageCreate', async (message) => {
     }
 
     // Auto-reply if mentioned
-    if (message.mentions.has(client.user)) {
-        await message.reply(`${message.author.tag} 3endek ratakel ma3endekx maratakelx`);
+    if (mentionReplyEnabled && message.mentions.has(client.user)) {
+        await message.reply(` 3endek ratakel ma3endekx maratakelx`);
     }
 });
 
@@ -105,6 +139,12 @@ client.on('messageCreate', async (message) => {
             await message.channel.send(`✅ قائمة المستخدمين وايموجياتهم:\n` + userList.join("\n"));
         }
     }
+
+    // Command to toggle mention auto-reply
+    if (message.content === '!repb') {
+        mentionReplyEnabled = !mentionReplyEnabled;
+        await message.channel.send(`✅ Mention auto-reply is now ${mentionReplyEnabled ? 'enabled' : 'disabled'}`);
+    }
 });
 
 // Custom responses & owner mention handling
@@ -124,15 +164,9 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    if (message.content === '!toggle_mention' && message.author.id === OWNER_ID) {
+    if (message.content === '!ownerr' && message.author.id === OWNER_ID) {
         ownerMentionEnabled = !ownerMentionEnabled;
         await message.reply(`✅ Owner mention responses are now ${ownerMentionEnabled ? 'enabled' : 'disabled'}`);
-    }
-
-    // Handle mentions for specific user
-    const TARZAN_ID = '554749455669264394';
-    if (message.mentions.has(TARZAN_ID)) {
-        await message.reply('be3doli men le9reyed dyali 🚫');
     }
 
     // Handle owner mention
@@ -143,3 +177,4 @@ client.on('messageCreate', async (message) => {
 
 // Log in using the token from .env
 client.login(process.env.DISCORD_TOKEN);
+
